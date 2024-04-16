@@ -22,6 +22,7 @@ import torch
 import yaml
 
 import torch.distributed as dist
+import torch_npu  # noqa: F401
 
 from torch.distributed.elastic.multiprocessing.errors import record
 
@@ -43,6 +44,9 @@ def get_args():
                         default='torch_ddp',
                         choices=['torch_ddp', 'deepspeed'],
                         help='Engine for paralleled training')
+    parser.add_argument('--device',
+                        default='cpu',
+                        help='which accelerator using for training')
     parser = add_model_args(parser)
     parser = add_dataset_args(parser)
     parser = add_ddp_args(parser)
@@ -120,7 +124,7 @@ def main():
     # Init scaler, used for pytorch amp mixed precision training
     scaler = None
     if args.use_amp:
-        scaler = torch.cuda.amp.GradScaler()
+        scaler = torch.npu.amp.GradScaler()
 
     # Start training loop
     start_epoch = configs["init_infos"].get('epoch', 0) + int("epoch_" in tag)
@@ -141,7 +145,7 @@ def main():
         )  # NOTE(xcsong): Ensure all ranks start Train at the same time.
         # NOTE(xcsong): Why we need a new group? see `train_utils.py::wenet_join`
         group_join = dist.new_group(
-            backend="gloo", timeout=datetime.timedelta(seconds=args.timeout))
+            backend="hccl", timeout=datetime.timedelta(seconds=args.timeout))
         executor.train(model, optimizer, scheduler, train_data_loader,
                        cv_data_loader, writer, configs, scaler, group_join)
         dist.destroy_process_group(group_join)

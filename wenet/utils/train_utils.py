@@ -109,7 +109,7 @@ def add_ddp_args(parser):
     parser.add_argument('--ddp.dist_backend',
                         dest='dist_backend',
                         default='nccl',
-                        choices=['nccl', 'gloo'],
+                        choices=['nccl', 'gloo', "hccl"],
                         help='distributed backend')
     parser.add_argument('--use_amp',
                         action='store_true',
@@ -149,7 +149,8 @@ def init_distributed(args):
     logging.info('training on multiple gpus, this gpu {}'.format(local_rank) +
                  ', rank {}, world_size {}'.format(rank, world_size))
     if args.train_engine == "torch_ddp":
-        torch.cuda.set_device(local_rank)
+        torch.npu.set_device(local_rank)
+        # torch.cuda.set_device(local_rank)
         dist.init_process_group(args.dist_backend)
     elif args.train_engine == "deepspeed":
         deepspeed.init_distributed(dist_backend=args.dist_backend)
@@ -266,20 +267,38 @@ def init_dataset_and_dataloader(args, configs, tokenizer, seed=777):
 
     # NOTE(xcsong): Why we prefer persistent_workers=True ?
     #   https://discuss.pytorch.org/t/what-are-the-dis-advantages-of-persistent-workers/102110
-    train_data_loader = DataLoader(train_dataset,
-                                   batch_size=None,
-                                   pin_memory=args.pin_memory,
-                                   num_workers=args.num_workers,
-                                   persistent_workers=True,
-                                   generator=generator,
-                                   prefetch_factor=args.prefetch)
-    cv_data_loader = DataLoader(cv_dataset,
-                                batch_size=None,
-                                pin_memory=args.pin_memory,
-                                num_workers=args.num_workers,
-                                persistent_workers=True,
-                                generator=generator,
-                                prefetch_factor=args.prefetch)
+    train_data_loader = DataLoader(
+        train_dataset,
+        batch_size=None,
+        pin_memory=args.pin_memory,
+        num_workers=0,
+        #    persistent_workers=True,
+        generator=generator,
+        #    prefetch_factor=args.prefetch,
+    )
+    # train_data_loader = DataLoader(train_dataset,
+    #                                batch_size=16,
+    #                                pin_memory=args.pin_memory,
+    #                                num_workers=0,
+    #                                persistent_workers=False,
+    #                                generator=generator,
+    #                                prefetch_factor=None)
+    cv_data_loader = DataLoader(
+        cv_dataset,
+        batch_size=None,
+        pin_memory=args.pin_memory,
+        num_workers=0,
+        # persistent_workers=True,
+        generator=generator,
+        # prefetch_factor=args.prefetch,
+    )
+    # cv_data_loader = DataLoader(cv_dataset,
+    #                             batch_size=None,
+    #                             pin_memory=args.pin_memory,
+    #                             num_workers=args.num_workers,
+    #                             persistent_workers=True,
+    #                             generator=generator,
+    #                             prefetch_factor=args.prefetch)
     return train_dataset, cv_dataset, train_data_loader, cv_data_loader
 
 
@@ -292,11 +311,12 @@ def wrap_cuda_model(args, model):
         grad_ckpt = False
     # TODO(xcsong): could one GPU use ddp? and int(os.environ.get('WORLD_SIZE', 1)) > 1
     if args.train_engine == "torch_ddp":  # native pytorch ddp
-        assert (torch.cuda.is_available())
-        model.cuda()
+        # assert (torch.cuda.is_available())
+        device = torch.device(args.device)
+        model.to(device)
         model = torch.nn.parallel.DistributedDataParallel(
             model, find_unused_parameters=not grad_ckpt)
-        device = torch.device("cuda")
+        # device = torch.device("cuda")
         if args.fp16_grad_sync:
             from torch.distributed.algorithms.ddp_comm_hooks import (
                 default as comm_hooks, )
@@ -457,7 +477,9 @@ def wenet_join(group_join, info_dict):
 
 def batch_forward(model, batch, scaler, info_dict):
     train_engine = info_dict.get('train_engine', "torch_ddp")
-    device = int(os.environ.get('LOCAL_RANK', 0))
+    # construct device via a single device ordinal will be treated as a cuda device
+    # device = int(os.environ.get('LOCAL_RANK', 0))
+    device = "npu:0"
     accum_grad = info_dict.get('accum_grad', 1)
 
     dtype = info_dict.get("dtype", "fp32")
@@ -479,7 +501,7 @@ def batch_forward(model, batch, scaler, info_dict):
         # autocast context
         # The more details about amp can be found in
         # https://pytorch.org/docs/stable/notes/amp_examples.html
-        with torch.cuda.amp.autocast(scaler is not None):
+        with torch.npu.amp.autocast(scaler is not None):
             loss_dict = model(batch, device)
     info_dict['loss_dict'] = loss_dict
 

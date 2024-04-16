@@ -60,6 +60,7 @@ def read_non_lang_symbols(non_lang_sym_path):
 
 def read_symbol_table(symbol_table_file):
     symbol_table = {}
+    symbol_table_file = "/home/cmq/code/wenet/examples/aishell/s0/data/dict/lang_char.txt"
     with open(symbol_table_file, 'r', encoding='utf8') as fin:
         for line in fin:
             arr = line.strip().split()

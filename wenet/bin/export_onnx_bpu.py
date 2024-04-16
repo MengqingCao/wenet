@@ -1045,6 +1045,7 @@ if __name__ == '__main__':
     assert args.chunk_size > 0
     assert args.num_decoding_left_chunks > 0
     os.system("mkdir -p " + args.output_dir)
+    # 禁用 GPU
     os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 
     with open(args.config, 'r') as fin:

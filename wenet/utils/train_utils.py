@@ -24,6 +24,7 @@ import yaml
 
 import torch.optim as optim
 import torch.distributed as dist
+import torch.multiprocessing as mp
 
 from tensorboardX import SummaryWriter
 from torch.utils.data import DataLoader
@@ -270,35 +271,27 @@ def init_dataset_and_dataloader(args, configs, tokenizer, seed=777):
     train_data_loader = DataLoader(
         train_dataset,
         batch_size=None,
-        pin_memory=args.pin_memory,
-        num_workers=0,
-        #    persistent_workers=True,
+        pin_memory=True,
+        num_workers=args.num_workers,
+        persistent_workers=True,
         generator=generator,
-        #    prefetch_factor=args.prefetch,
+        prefetch_factor=args.prefetch,
+        pin_memory_device="npu",
+        multiprocessing_context=mp.get_context("spawn"),
     )
-    # train_data_loader = DataLoader(train_dataset,
-    #                                batch_size=16,
-    #                                pin_memory=args.pin_memory,
-    #                                num_workers=0,
-    #                                persistent_workers=False,
-    #                                generator=generator,
-    #                                prefetch_factor=None)
+
     cv_data_loader = DataLoader(
         cv_dataset,
         batch_size=None,
         pin_memory=args.pin_memory,
-        num_workers=0,
-        # persistent_workers=True,
+        num_workers=args.num_workers,
+        persistent_workers=True,
         generator=generator,
-        # prefetch_factor=args.prefetch,
+        prefetch_factor=args.prefetch,
+        pin_memory_device="npu",
+        multiprocessing_context=mp.get_context("spawn"),
     )
-    # cv_data_loader = DataLoader(cv_dataset,
-    #                             batch_size=None,
-    #                             pin_memory=args.pin_memory,
-    #                             num_workers=args.num_workers,
-    #                             persistent_workers=True,
-    #                             generator=generator,
-    #                             prefetch_factor=args.prefetch)
+
     return train_dataset, cv_dataset, train_data_loader, cv_data_loader
 
 
@@ -479,7 +472,7 @@ def batch_forward(model, batch, scaler, info_dict):
     train_engine = info_dict.get('train_engine', "torch_ddp")
     # construct device via a single device ordinal will be treated as a cuda device
     # device = int(os.environ.get('LOCAL_RANK', 0))
-    device = "npu:0"
+    device = model.device
     accum_grad = info_dict.get('accum_grad', 1)
 
     dtype = info_dict.get("dtype", "fp32")

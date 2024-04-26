@@ -17,8 +17,8 @@ fi
 export NPU_VISIBLE_DEVICES="${npu_list}"
 echo "NPU_VISIBLE_DEVICES is ${NPU_VISIBLE_DEVICES}"
 
-stage=6 # start from 0 if you need to start from data preparation
-stop_stage=6
+stage=3 # start from 0 if you need to start from data preparation
+stop_stage=4
 
 # You should change the following two parameters for multiple machine training,
 # see https://pytorch.org/docs/stable/elastic/run.html

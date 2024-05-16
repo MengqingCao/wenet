@@ -145,7 +145,7 @@ def main():
         )  # NOTE(xcsong): Ensure all ranks start Train at the same time.
         # NOTE(xcsong): Why we need a new group? see `train_utils.py::wenet_join`
         group_join = dist.new_group(
-            backend="hccl", timeout=datetime.timedelta(seconds=args.timeout))
+            backend="gloo", timeout=datetime.timedelta(seconds=args.timeout))
         executor.train(model, optimizer, scheduler, train_data_loader,
                        cv_data_loader, writer, configs, scaler, group_join)
         dist.destroy_process_group(group_join)

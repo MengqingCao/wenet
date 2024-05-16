@@ -64,13 +64,17 @@ class Model:
         if sample_rate != self.resample_rate:
             waveform = torchaudio.transforms.Resample(
                 orig_freq=sample_rate, new_freq=self.resample_rate)(waveform)
-        waveform = waveform.to(self.device)
+        # NOTE(MengqingCao): npu don't support rfft in fbank by now, revert me after it is supported
+        if "npu" not in self.device.__str__():
+            waveform = waveform.to(self.device)
         feats = kaldi.fbank(waveform,
                             num_mel_bins=80,
                             frame_length=25,
                             frame_shift=10,
                             energy_floor=0.0,
                             sample_frequency=self.resample_rate)
+        if "npu" in self.device.__str__():
+            feats = feats.to(self.device)
         feats = feats.unsqueeze(0)
         return feats
 

@@ -12,7 +12,7 @@ mkdir -p exp
 mkdir -p exp/whisper
 mkdir -p exp/whisper/large-v3
 . ./path.sh && python wenet/whisper/convert_whisper_to_wenet_config_and_ckpt.py \
-  --whisper_ckpt downloaded-large-v3.pt \
+  --whisper_ckpt /home/cmq/code/wenet/examples/aishell/whisper/exp/whisper/large-v3/large-v3.pt \
   --output_dir exp/whisper/large-v3
 # remove conv1d2
 python local/modify_ckpt.py \

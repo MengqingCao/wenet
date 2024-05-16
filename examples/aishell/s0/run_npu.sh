@@ -17,7 +17,7 @@ fi
 export NPU_VISIBLE_DEVICES="${npu_list}"
 echo "NPU_VISIBLE_DEVICES is ${NPU_VISIBLE_DEVICES}"
 
-stage=3 # start from 0 if you need to start from data preparation
+stage=4 # start from 0 if you need to start from data preparation
 stop_stage=4
 
 # You should change the following two parameters for multiple machine training,
@@ -171,8 +171,8 @@ if [ ${stage} -le 4 ] && [ ${stop_stage} -ge 4 ]; then
       --train_engine ${train_engine} \
       --config $train_config \
       --data_type  $data_type \
-      --train_data data/$train_set/data.list \
-      --cv_data data/dev/data.list \
+      --train_data data/$train_set/data-whisper.list \
+      --cv_data data/dev/data-whisper.list \
       ${checkpoint:+--checkpoint $checkpoint} \
       --model_dir $dir \
       --tensorboard_dir ${tensorboard_dir} \

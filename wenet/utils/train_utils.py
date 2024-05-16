@@ -24,7 +24,6 @@ import yaml
 
 import torch.optim as optim
 import torch.distributed as dist
-import torch.multiprocessing as mp
 
 from tensorboardX import SummaryWriter
 from torch.utils.data import DataLoader
@@ -271,13 +270,11 @@ def init_dataset_and_dataloader(args, configs, tokenizer, seed=777):
     train_data_loader = DataLoader(
         train_dataset,
         batch_size=None,
-        pin_memory=True,
+        pin_memory=args.pin_memory,
         num_workers=args.num_workers,
         persistent_workers=True,
         generator=generator,
         prefetch_factor=args.prefetch,
-        pin_memory_device="npu",
-        multiprocessing_context=mp.get_context("spawn"),
     )
 
     cv_data_loader = DataLoader(
@@ -288,8 +285,6 @@ def init_dataset_and_dataloader(args, configs, tokenizer, seed=777):
         persistent_workers=True,
         generator=generator,
         prefetch_factor=args.prefetch,
-        pin_memory_device="npu",
-        multiprocessing_context=mp.get_context("spawn"),
     )
 
     return train_dataset, cv_dataset, train_data_loader, cv_data_loader
@@ -485,10 +480,16 @@ def batch_forward(model, batch, scaler, info_dict):
 
     if train_engine == "deepspeed":
         # deepspeed
-        with torch.cuda.amp.autocast(enabled=dtype is not None,
-                                     dtype=dtype,
-                                     cache_enabled=False):
-            loss_dict = model(batch, device)
+        if torch.npu.is_available():
+            with torch.npu.amp.autocast(enabled=dtype is not None,
+                                        dtype=dtype,
+                                        cache_enabled=False):
+                loss_dict = model(batch, device)
+        else:
+            with torch.cuda.amp.autocast(enabled=dtype is not None,
+                                         dtype=dtype,
+                                         cache_enabled=False):
+                loss_dict = model(batch, device)
     else:
         # torch_ddp
         # autocast context

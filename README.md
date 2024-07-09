@@ -69,7 +69,9 @@ pip install torch==2.2.2+cu121 torchaudio==2.2.2+cu121 -f https://download.pytor
 ```
 
 <details><summary><b>For Ascend NPU users:</b></summary>
+
 - Install CANN: please follow this [link](https://ascend.github.io/docs/sources/ascend/quick_install.html) to install CANN toolkit and kernels.
+
 - Install WeNet with torch-npu dependencies:
 
 ``` sh
